@@ -49,8 +49,22 @@ python3 scripts/import_xlsx.py && python3 scripts/build_site.py
 into `site/template.html`, so the published page can never disagree with the
 data — edit the template for looks, the SQL for numbers.
 
-If Pages is not switched on yet: **Settings → Pages → Source: Deploy from a
-branch**, then pick the branch holding this work and the **`/docs`** folder.
+### Switching Pages on
+
+Publishing needs the repository owner to enable Pages once — the Actions token
+is not allowed to create the site itself. Either option works:
+
+1. **Deploy from a branch** (simplest, nothing else to do). Settings → Pages →
+   Source: *Deploy from a branch* → branch `claude/spreadsheet-to-database-july7p`
+   (or `main` once merged) → folder **`/docs`** → Save. The committed `docs/`
+   folder is served as-is; re-run `build_site.py` and commit to update it.
+2. **GitHub Actions.** Settings → Pages → Source: *GitHub Actions*, then set the
+   repository variable `DEPLOY_PAGES` to `true` (Settings → Secrets and
+   variables → Actions → Variables). `.github/workflows/pages.yml` then rebuilds
+   the database from the workbook, reconciles it, regenerates the site and
+   deploys on every push — a failed reconciliation blocks the deploy.
+
+The site is live a minute or so later at the URL above.
 
 ## Layout
 

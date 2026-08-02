@@ -3,6 +3,15 @@ name: Deploy dashboard to GitHub Pages
 # Rebuilds the database from the workbook, reconciles it, regenerates the site
 # and publishes it. Because the site is rebuilt here, the published page can
 # never lag behind data/source/landlord_10_property_database.xlsx.
+#
+# This workflow is only needed if Pages is set to "Source: GitHub Actions".
+# With the simpler "Deploy from a branch" setting (branch + /docs folder) the
+# committed docs/ folder is published directly and this never has to run.
+#
+# It deploys on push once the repository variable DEPLOY_PAGES is set to true
+# (Settings > Secrets and variables > Actions > Variables). Until then pushes
+# skip it, so the branch is not red for a setting that has not been chosen.
+# "Run workflow" always works regardless of the variable.
 
 on:
   push:
@@ -22,6 +31,7 @@ concurrency:
 
 jobs:
   build:
+    if: github.event_name == 'workflow_dispatch' || vars.DEPLOY_PAGES == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
