@@ -1,0 +1,644 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Landlord Property Database</title>
+<meta name="description" content="Portfolio dashboard generated from the landlord property SQLite database.">
+<style>
+  :root {
+    color-scheme: light;
+    --surface-1: #fcfcfb;
+    --plane: #f9f9f7;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --muted: #898781;
+    --grid: #e1e0d9;
+    --axis: #c3c2b7;
+    --border: rgba(11, 11, 11, 0.10);
+    --series-1: #2a78d6;
+    --series-2: #eb6834;
+    --good: #0ca30c;
+    --warning: #fab219;
+    --serious: #ec835a;
+    --critical: #d03b3b;
+    --shadow: 0 1px 2px rgba(11, 11, 11, .06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --surface-1: #1a1a19;
+      --plane: #0d0d0d;
+      --text-primary: #ffffff;
+      --text-secondary: #c3c2b7;
+      --muted: #898781;
+      --grid: #2c2c2a;
+      --axis: #383835;
+      --border: rgba(255, 255, 255, 0.10);
+      --series-1: #3987e5;
+      --series-2: #d95926;
+      --shadow: none;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --surface-1: #1a1a19;
+    --plane: #0d0d0d;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --muted: #898781;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --border: rgba(255, 255, 255, 0.10);
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --shadow: none;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--plane);
+    color: var(--text-primary);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-text-size-adjust: 100%;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 32px 20px 64px; }
+  a { color: var(--series-1); }
+
+  header.page { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start;
+                justify-content: space-between; margin-bottom: 28px; }
+  h1 { font-size: 25px; margin: 0 0 6px; letter-spacing: -.01em; }
+  .sub { color: var(--text-secondary); margin: 0; font-size: 14px; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn {
+    appearance: none; border: 1px solid var(--border); background: var(--surface-1);
+    color: var(--text-primary); border-radius: 8px; padding: 7px 12px; font: inherit;
+    font-size: 13px; cursor: pointer; text-decoration: none; box-shadow: var(--shadow);
+  }
+  .btn:hover { border-color: var(--axis); }
+
+  h2 { font-size: 17px; margin: 36px 0 4px; letter-spacing: -.01em; }
+  h2:first-of-type { margin-top: 28px; }
+  .note { color: var(--text-secondary); font-size: 13px; margin: 0 0 14px; }
+
+  .tiles { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(168px, 1fr)); }
+  .tile {
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px 16px; box-shadow: var(--shadow);
+  }
+  .tile .label { font-size: 12px; color: var(--text-secondary); text-transform: uppercase;
+                 letter-spacing: .04em; }
+  .tile .value { font-size: 26px; margin-top: 6px; letter-spacing: -.02em; }
+  .tile .foot { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  .card {
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px; box-shadow: var(--shadow);
+  }
+  .chart-wrap { position: relative; overflow-x: auto; }
+  svg { display: block; }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin: 0 0 10px; font-size: 13px;
+            color: var(--text-secondary); }
+  .legend span { display: inline-flex; align-items: center; gap: 7px; }
+  .swatch { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+
+  .tip {
+    position: absolute; pointer-events: none; opacity: 0; transition: opacity .1s;
+    background: var(--surface-1); border: 1px solid var(--axis); border-radius: 8px;
+    padding: 8px 10px; font-size: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.16);
+    white-space: nowrap; z-index: 5;
+  }
+  .tip b { display: block; font-size: 13px; margin-bottom: 3px; }
+  .tip .row { display: flex; align-items: center; gap: 7px; color: var(--text-secondary); }
+  .tip .row var { font-style: normal; color: var(--text-primary);
+                  font-variant-numeric: tabular-nums; margin-left: auto; padding-left: 12px; }
+
+  details { margin-top: 12px; }
+  summary { cursor: pointer; font-size: 13px; color: var(--text-secondary); }
+
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 14px 0; }
+  .tab {
+    border: 1px solid var(--border); background: var(--surface-1); color: var(--text-secondary);
+    border-radius: 999px; padding: 6px 13px; font: inherit; font-size: 13px; cursor: pointer;
+  }
+  .tab[aria-selected="true"] { background: var(--series-1); border-color: var(--series-1);
+                               color: #fff; }
+  .search {
+    width: 100%; max-width: 320px; padding: 8px 11px; font: inherit; font-size: 14px;
+    border: 1px solid var(--border); border-radius: 8px; background: var(--surface-1);
+    color: var(--text-primary); margin-bottom: 12px;
+  }
+
+  .table-scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--grid);
+           white-space: nowrap; }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: .04em;
+       color: var(--text-secondary); font-weight: 600; cursor: pointer; user-select: none;
+       position: sticky; top: 0; background: var(--surface-1); }
+  th::after { content: ""; }
+  th[data-dir="asc"]::after { content: " ▲"; color: var(--muted); }
+  th[data-dir="desc"]::after { content: " ▼"; color: var(--muted); }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tbody tr:hover td { background: color-mix(in srgb, var(--series-1) 6%, transparent); }
+  tbody tr:last-child td { border-bottom: none; }
+  .empty { color: var(--muted); padding: 18px 12px; font-size: 14px; }
+
+  .badge { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px;
+           font-weight: 500; }
+  .badge i { font-style: normal; font-size: 11px; }
+  .s-good { color: var(--good); }
+  .s-warning { color: #8a6100; }
+  .s-serious { color: var(--serious); }
+  .s-critical { color: var(--critical); }
+  :root[data-theme="dark"] .s-warning { color: var(--warning); }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .s-warning { color: var(--warning); }
+  }
+
+  .cols { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+  .schema { font-size: 13px; color: var(--text-secondary); }
+  .schema code { color: var(--text-primary); }
+  footer { margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--grid);
+           color: var(--muted); font-size: 13px; }
+  @media (max-width: 560px) { .wrap { padding: 20px 14px 48px; } h1 { font-size: 21px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="page">
+  <div>
+    <h1>Landlord Property Database</h1>
+    <p class="sub">10-property portfolio &middot; generated from <code>property.db</code> on <span id="generated"></span></p>
+  </div>
+  <div class="actions">
+    <button class="btn" id="theme" type="button">Theme</button>
+    <a class="btn" href="property.db" download>Download .db</a>
+    <a class="btn" href="landlord_10_property_database.xlsx" download>Source .xlsx</a>
+    <a class="btn" href="https://github.com/theojandhyala/sastry-property-database1">Repository</a>
+  </div>
+</header>
+
+<section class="tiles" id="tiles"></section>
+
+<h2>Rent collection</h2>
+<p class="note">Rent due each month, split into what was collected and what is still outstanding.</p>
+<div class="card">
+  <div class="legend">
+    <span><i class="swatch" style="background:var(--series-1)"></i>Collected</span>
+    <span><i class="swatch" style="background:var(--series-2)"></i>Outstanding</span>
+  </div>
+  <div class="chart-wrap" id="chart-rent"></div>
+  <details>
+    <summary>Show the numbers</summary>
+    <div class="table-scroll" id="rent-table"></div>
+  </details>
+</div>
+
+<h2>Rent against mortgage, by property</h2>
+<p class="note">Monthly rent charged versus the mortgage payment on the same unit. The gap is the gross margin before costs.</p>
+<div class="card">
+  <div class="legend">
+    <span><i class="swatch" style="background:var(--series-1)"></i>Monthly rent</span>
+    <span><i class="swatch" style="background:var(--series-2)"></i>Mortgage payment</span>
+  </div>
+  <div class="chart-wrap" id="chart-margin"></div>
+</div>
+
+<h2>The data</h2>
+<p class="note">Every table below is read straight from the database views. Click a column to sort, type to filter.</p>
+<div class="card">
+  <div class="tabs" id="tabs" role="tablist"></div>
+  <input class="search" id="search" type="search" placeholder="Filter rows…" aria-label="Filter rows">
+  <div class="table-scroll" id="table"></div>
+</div>
+
+<h2>What is in the database</h2>
+<div class="cols" id="schema"></div>
+
+<footer>
+  Built from <code>data/source/landlord_10_property_database.xlsx</code> by
+  <code>scripts/import_xlsx.py</code> and <code>scripts/build_site.py</code>.
+  Derived figures are SQL views, so nothing on this page is typed by hand.
+</footer>
+
+</div>
+
+<script>
+const DATA = {"dashboard":[{"metric":"Total Properties","value":10},{"metric":"Occupied Properties","value":8},{"metric":"Available Properties","value":2},{"metric":"Monthly Rent Roll (let)","value":15000},{"metric":"Annual Rent Roll (let)","value":180000},{"metric":"Monthly Rent Potential (all)","value":18900},{"metric":"Annual Rent Potential (all)","value":226800},{"metric":"Current Arrears","value":3100},{"metric":"Open Maintenance","value":1},{"metric":"Maintenance Spend","value":360},{"metric":"Mortgage Balance","value":2050000},{"metric":"Monthly Mortgage Cost","value":8650},{"metric":"Certificates Expiring (60d)","value":0}],"rent_by_month":[{"due_month":"2026-01","due":15000,"collected":15000,"outstanding":0},{"due_month":"2026-02","due":15000,"collected":15000,"outstanding":0},{"due_month":"2026-03","due":15000,"collected":15000,"outstanding":0},{"due_month":"2026-04","due":15000,"collected":15000,"outstanding":0},{"due_month":"2026-05","due":15000,"collected":11900,"outstanding":3100},{"due_month":"2026-06","due":15000,"collected":15000,"outstanding":0}],"properties":[{"property_id":"P001","address":"1 High Street","property_type":"Flat","bedrooms":2,"status":"Occupied","monthly_rent":1500,"mortgage_monthly_payment":730,"monthly_gross_margin":770,"current_tenant_name":"Sarah Jones","tenancy_end_date":"2026-12-31"},{"property_id":"P002","address":"2 High Street","property_type":"House","bedrooms":3,"status":"Occupied","monthly_rent":2100,"mortgage_monthly_payment":760,"monthly_gross_margin":1340,"current_tenant_name":"David Brown","tenancy_end_date":"2026-01-31"},{"property_id":"P003","address":"3 High Street","property_type":"Flat","bedrooms":1,"status":"Occupied","monthly_rent":1200,"mortgage_monthly_payment":790,"monthly_gross_margin":410,"current_tenant_name":"Aisha Khan","tenancy_end_date":"2026-12-31"},{"property_id":"P004","address":"4 High Street","property_type":"House","bedrooms":4,"status":"Occupied","monthly_rent":2500,"mortgage_monthly_payment":820,"monthly_gross_margin":1680,"current_tenant_name":"Michael Lee","tenancy_end_date":"2026-01-31"},{"property_id":"P005","address":"5 High Street","property_type":"Flat","bedrooms":2,"status":"Occupied","monthly_rent":1600,"mortgage_monthly_payment":850,"monthly_gross_margin":750,"current_tenant_name":"Priya Patel","tenancy_end_date":"2026-12-31"},{"property_id":"P006","address":"6 High Street","property_type":"House","bedrooms":3,"status":"Occupied","monthly_rent":2000,"mortgage_monthly_payment":880,"monthly_gross_margin":1120,"current_tenant_name":"James Wilson","tenancy_end_date":"2026-01-31"},{"property_id":"P007","address":"7 High Street","property_type":"Flat","bedrooms":1,"status":"Occupied","monthly_rent":1100,"mortgage_monthly_payment":910,"monthly_gross_margin":190,"current_tenant_name":"Emma Taylor","tenancy_end_date":"2026-12-31"},{"property_id":"P008","address":"8 High Street","property_type":"House","bedrooms":5,"status":"Occupied","monthly_rent":3000,"mortgage_monthly_payment":940,"monthly_gross_margin":2060,"current_tenant_name":"Mohammed Ali","tenancy_end_date":"2026-01-31"},{"property_id":"P009","address":"9 High Street","property_type":"Flat","bedrooms":2,"status":"Available","monthly_rent":1700,"mortgage_monthly_payment":970,"monthly_gross_margin":730,"current_tenant_name":null,"tenancy_end_date":null},{"property_id":"P010","address":"10 High Street","property_type":"House","bedrooms":3,"status":"Available","monthly_rent":2200,"mortgage_monthly_payment":1000,"monthly_gross_margin":1200,"current_tenant_name":null,"tenancy_end_date":null}],"tenancies":[{"tenancy_id":"TN002","property_id":"P002","tenant_name":"David Brown","tenant_phone":"07222 222222","start_date":"2026-02-01","end_date":"2026-01-31","monthly_rent":2100,"deposit":2100,"days_to_end":-183,"renewal_flag":"Expired"},{"tenancy_id":"TN004","property_id":"P004","tenant_name":"Michael Lee","tenant_phone":"07444 444444","start_date":"2026-02-01","end_date":"2026-01-31","monthly_rent":2500,"deposit":2500,"days_to_end":-183,"renewal_flag":"Expired"},{"tenancy_id":"TN006","property_id":"P006","tenant_name":"James Wilson","tenant_phone":"07666 666666","start_date":"2026-02-01","end_date":"2026-01-31","monthly_rent":2000,"deposit":2000,"days_to_end":-183,"renewal_flag":"Expired"},{"tenancy_id":"TN008","property_id":"P008","tenant_name":"Mohammed Ali","tenant_phone":"07888 888888","start_date":"2026-02-01","end_date":"2026-01-31","monthly_rent":3000,"deposit":3000,"days_to_end":-183,"renewal_flag":"Expired"},{"tenancy_id":"TN001","property_id":"P001","tenant_name":"Sarah Jones","tenant_phone":"07111 111111","start_date":"2026-01-01","end_date":"2026-12-31","monthly_rent":1500,"deposit":1500,"days_to_end":151,"renewal_flag":"OK"},{"tenancy_id":"TN003","property_id":"P003","tenant_name":"Aisha Khan","tenant_phone":"07333 333333","start_date":"2026-01-01","end_date":"2026-12-31","monthly_rent":1200,"deposit":1200,"days_to_end":151,"renewal_flag":"OK"},{"tenancy_id":"TN005","property_id":"P005","tenant_name":"Priya Patel","tenant_phone":"07555 555555","start_date":"2026-01-01","end_date":"2026-12-31","monthly_rent":1600,"deposit":1600,"days_to_end":151,"renewal_flag":"OK"},{"tenancy_id":"TN007","property_id":"P007","tenant_name":"Emma Taylor","tenant_phone":"07777 777777","start_date":"2026-01-01","end_date":"2026-12-31","monthly_rent":1100,"deposit":1100,"days_to_end":151,"renewal_flag":"OK"}],"arrears":[{"property_id":"P006","address":"6 High Street","tenant_name":"James Wilson","total_arrears":2000,"payments_in_arrears":1,"oldest_unpaid_due_date":"2026-05-01"},{"property_id":"P002","address":"2 High Street","tenant_name":"David Brown","total_arrears":1100,"payments_in_arrears":1,"oldest_unpaid_due_date":"2026-05-01"}],"certificates":[{"property_id":"P001","certificate_type":"Gas Safety","issue_date":"2026-01-01","expiry_date":"2027-01-01","days_to_expiry":152,"current_status":"Valid"},{"property_id":"P002","certificate_type":"Gas Safety","issue_date":"2026-01-01","expiry_date":"2027-01-01","days_to_expiry":152,"current_status":"Valid"},{"property_id":"P003","certificate_type":"Gas Safety","issue_date":"2026-01-01","expiry_date":"2027-01-01","days_to_expiry":152,"current_status":"Valid"},{"property_id":"P004","certificate_type":"Gas Safety","issue_date":"2026-01-01","expiry_date":"2027-01-01","days_to_expiry":152,"current_status":"Valid"},{"property_id":"P005","certificate_type":"Gas Safety","issue_date":"2026-01-01","expiry_date":"2027-01-01","days_to_expiry":152,"current_status":"Valid"},{"property_id":"P006","certificate_type":"Gas Safety","issue_date":"2026-01-01","expiry_date":"2027-01-01","days_to_expiry":152,"current_status":"Valid"},{"property_id":"P007","certificate_type":"Gas Safety","issue_date":"2026-01-01","expiry_date":"2027-01-01","days_to_expiry":152,"current_status":"Valid"},{"property_id":"P008","certificate_type":"Gas Safety","issue_date":"2026-01-01","expiry_date":"2027-01-01","days_to_expiry":152,"current_status":"Valid"},{"property_id":"P009","certificate_type":"Gas Safety","issue_date":"2026-01-01","expiry_date":"2027-01-01","days_to_expiry":152,"current_status":"Valid"},{"property_id":"P010","certificate_type":"Gas Safety","issue_date":"2026-01-01","expiry_date":"2027-01-01","days_to_expiry":152,"current_status":"Valid"},{"property_id":"P001","certificate_type":"EPC","issue_date":"2026-01-01","expiry_date":"2031-01-01","days_to_expiry":1613,"current_status":"Valid"},{"property_id":"P001","certificate_type":"EICR","issue_date":"2026-01-01","expiry_date":"2031-01-01","days_to_expiry":1613,"current_status":"Valid"},{"property_id":"P002","certificate_type":"EPC","issue_date":"2026-01-01","expiry_date":"2031-01-01","days_to_expiry":1613,"current_status":"Valid"},{"property_id":"P002","certificate_type":"EICR","issue_date":"2026-01-01","expiry_date":"2031-01-01","days_to_expiry":1613,"current_status":"Valid"},{"property_id":"P003","certificate_type":"EPC","issue_date":"2026-01-01","expiry_date":"2031-01-01","days_to_expiry":1613,"current_status":"Valid"},{"property_id":"P003","certificate_type":"EICR","issue_date":"2026-01-01","expiry_date":"2031-01-01","days_to_expiry":1613,"current_status":"Valid"},{"property_id":"P004","certificate_type":"EPC","issue_date":"2026-01-01","expiry_date":"2031-01-01","days_to_expiry":1613,"current_status":"Valid"},{"property_id":"P004","certificate_type":"EICR","issue_date":"2026-01-01","expiry_date":"2031-01-01","days_to_expiry":1613,"current_status":"Valid"},{"property_id":"P005","certificate_type":"EPC","issue_date":"2026-01-01","expiry_date":"2031-01-01","days_to_expiry":1613,"current_status":"Valid"},{"property_id":"P005","certificate_type":"EICR","issue_date":"2026-01-01","expiry_date":"2031-01-01","days_to_expiry":1613,"current_status":"Valid"},{"property_id":"P006","certificate_type":"EPC","issue_date":"2026-01-01","expiry_date":"2031-01-01","days_to_expiry":1613,"current_status":"Valid"},{"property_id":"P006","certificate_type":"EICR","issue_date":"2026-01-01","expiry_date":"2031-01-01","days_to_expiry":1613,"current_status":"Valid"},{"property_id":"P007","certificate_type":"EPC","issue_date":"2026-01-01","expiry_date":"2031-01-01","days_to_expiry":1613,"current_status":"Valid"},{"property_id":"P007","certificate_type":"EICR","issue_date":"2026-01-01","expiry_date":"2031-01-01","days_to_expiry":1613,"current_status":"Valid"},{"property_id":"P008","certificate_type":"EPC","issue_date":"2026-01-01","expiry_date":"2031-01-01","days_to_expiry":1613,"current_status":"Valid"},{"property_id":"P008","certificate_type":"EICR","issue_date":"2026-01-01","expiry_date":"2031-01-01","days_to_expiry":1613,"current_status":"Valid"},{"property_id":"P009","certificate_type":"EPC","issue_date":"2026-01-01","expiry_date":"2031-01-01","days_to_expiry":1613,"current_status":"Valid"},{"property_id":"P009","certificate_type":"EICR","issue_date":"2026-01-01","expiry_date":"2031-01-01","days_to_expiry":1613,"current_status":"Valid"},{"property_id":"P010","certificate_type":"EPC","issue_date":"2026-01-01","expiry_date":"2031-01-01","days_to_expiry":1613,"current_status":"Valid"},{"property_id":"P010","certificate_type":"EICR","issue_date":"2026-01-01","expiry_date":"2031-01-01","days_to_expiry":1613,"current_status":"Valid"}],"maintenance":[{"maintenance_id":"M004","property_id":"P008","description":"Garden fence repair","priority":"Low","status":"In Progress","reported_date":"2026-05-25","cost_estimate":300,"actual_cost":null,"contractor":"GardenFix"},{"maintenance_id":"M003","property_id":"P006","description":"Roof leak check","priority":"High","status":"Open","reported_date":"2026-05-20","cost_estimate":500,"actual_cost":null,"contractor":"RoofCare"},{"maintenance_id":"M002","property_id":"P002","description":"Plumbing repair","priority":"High","status":"Completed","reported_date":"2026-02-15","cost_estimate":250,"actual_cost":240,"contractor":"Rapid Plumbing"},{"maintenance_id":"M001","property_id":"P001","description":"Boiler service","priority":"Medium","status":"Completed","reported_date":"2026-01-10","cost_estimate":120,"actual_cost":120,"contractor":"ABC Gas Services"}],"issues":[{"entity":"maintenance","record_id":"M003","issue":"Contractor has no insurance check recorded as passed"},{"entity":"maintenance","record_id":"M004","issue":"Contractor has no insurance check recorded as passed"},{"entity":"property","record_id":"P001","issue":"Occupied property has no rent payment in the last 60 days"},{"entity":"property","record_id":"P002","issue":"Occupied property has no rent payment in the last 60 days"},{"entity":"property","record_id":"P003","issue":"Occupied property has no rent payment in the last 60 days"},{"entity":"property","record_id":"P004","issue":"Occupied property has no rent payment in the last 60 days"},{"entity":"property","record_id":"P005","issue":"Occupied property has no rent payment in the last 60 days"},{"entity":"property","record_id":"P006","issue":"Occupied property has no rent payment in the last 60 days"},{"entity":"property","record_id":"P007","issue":"Occupied property has no rent payment in the last 60 days"},{"entity":"property","record_id":"P008","issue":"Occupied property has no rent payment in the last 60 days"},{"entity":"tenancy","record_id":"TN002","issue":"End date is before start date (2026-02-01 -> 2026-01-31)"},{"entity":"tenancy","record_id":"TN004","issue":"End date is before start date (2026-02-01 -> 2026-01-31)"},{"entity":"tenancy","record_id":"TN006","issue":"End date is before start date (2026-02-01 -> 2026-01-31)"},{"entity":"tenancy","record_id":"TN008","issue":"End date is before start date (2026-02-01 -> 2026-01-31)"}],"counts":{"certificate":30,"contractor":4,"enum_value":32,"landlord":1,"maintenance":4,"mortgage":10,"property":10,"rent_payment":48,"tenancy":8,"tenant":10},"generated":"02 August 2026"};
+
+/* ---------------------------------------------------------------- helpers */
+const gbp = n => new Intl.NumberFormat('en-GB', {
+  style: 'currency', currency: 'GBP', maximumFractionDigits: 0
+}).format(n || 0);
+const num = n => new Intl.NumberFormat('en-GB').format(n || 0);
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const monthLabel = ym => {
+  const [y, m] = String(ym).split('-');
+  return `${MONTHS[+m - 1]} ${y}`;
+};
+const dateLabel = iso => {
+  if (!iso) return '';
+  const [y, m, d] = String(iso).split('-');
+  return `${+d} ${MONTHS[+m - 1]} ${y}`;
+};
+const el = (tag, attrs = {}, text) => {
+  const node = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+  if (text != null) node.textContent = text;
+  return node;
+};
+const metric = name => (DATA.dashboard.find(r => r.metric === name) || {}).value || 0;
+
+/* Rounded-top bar path, anchored square to the baseline. */
+function barPath(x, y, w, h, r) {
+  if (h <= 0) return '';
+  r = Math.min(r, w / 2, h);
+  return `M${x},${y + h}V${y + r}a${r},${r} 0 0 1 ${r},-${r}h${w - 2 * r}` +
+         `a${r},${r} 0 0 1 ${r},${r}V${y + h}Z`;
+}
+
+/* Axis maximum and ticks on a round step (1, 2, 2.5, 5 x 10^n). */
+function scale(max, target = 4) {
+  const raw = (max || 1) / target;
+  const pow = Math.pow(10, Math.floor(Math.log10(raw)));
+  const norm = raw / pow;
+  const step = (norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 2.5 ? 2.5 : norm <= 5 ? 5 : 10) * pow;
+  const top = Math.ceil(max / step) * step;
+  const ticks = [];
+  for (let t = 0; t <= top + 1e-6; t += step) ticks.push(t);
+  return { top, ticks };
+}
+const tickLabel = t => t >= 1000 ? `£${+(t / 1000).toFixed(1)}k` : `£${t}`;
+
+/* --------------------------------------------------------------- tooltips */
+function tooltip(wrap) {
+  const tip = document.createElement('div');
+  tip.className = 'tip';
+  wrap.appendChild(tip);
+  return {
+    show(html, event) {
+      tip.innerHTML = html;
+      tip.style.opacity = 1;
+      const box = wrap.getBoundingClientRect();
+      let x = event.clientX - box.left + 14;
+      const y = event.clientY - box.top + 14;
+      if (x + tip.offsetWidth > wrap.clientWidth) x = Math.max(4, x - tip.offsetWidth - 28);
+      tip.style.left = x + 'px';
+      tip.style.top = y + 'px';
+    },
+    hide() { tip.style.opacity = 0; }
+  };
+}
+const tipRow = (color, label, value) =>
+  `<div class="row"><i class="swatch" style="background:${color}"></i>${label}<var>${value}</var></div>`;
+
+/* ------------------------------------------------------------ stat tiles */
+function renderTiles() {
+  const let_ = metric('Monthly Rent Roll (let)');
+  const potential = metric('Monthly Rent Potential (all)');
+  const mortgage = metric('Monthly Mortgage Cost');
+  const occupied = metric('Occupied Properties');
+  const total = metric('Total Properties');
+  const tiles = [
+    ['Properties', num(total), `${num(occupied)} let · ${num(metric('Available Properties'))} available`],
+    ['Monthly rent roll', gbp(let_), `${gbp(potential)} if fully let`],
+    ['Annual rent roll', gbp(metric('Annual Rent Roll (let)')), 'contracted, let units only'],
+    ['Rent arrears', gbp(metric('Current Arrears')),
+      `${DATA.arrears.length} tenant${DATA.arrears.length === 1 ? '' : 's'} behind`],
+    ['Gross margin', gbp(let_ - mortgage), `after ${gbp(mortgage)} of mortgage payments`],
+    ['Open maintenance', num(DATA.maintenance.filter(m => m.status !== 'Completed').length),
+      `${gbp(metric('Maintenance Spend'))} spent to date`],
+  ];
+  document.getElementById('tiles').innerHTML = tiles.map(([label, value, foot]) => `
+    <div class="tile"><div class="label">${label}</div>
+    <div class="value">${value}</div><div class="foot">${foot}</div></div>`).join('');
+}
+
+/* --------------------------------------------- chart 1: stacked rent bars */
+function renderRentChart(wrap) {
+  const rows = DATA.rent_by_month;
+  const W = Math.max(wrap.clientWidth || 640, 420), H = 300;
+  const M = { top: 22, right: 12, bottom: 34, left: 62 };
+  const plotW = W - M.left - M.right, plotH = H - M.top - M.bottom;
+  const { top, ticks } = scale(Math.max(...rows.map(r => r.due)));
+  const y = v => M.top + plotH - (v / top) * plotH;
+  const band = plotW / rows.length;
+  const bw = Math.min(56, band * 0.56);
+
+  const svg = el('svg', {
+    width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img',
+    'aria-label': `Rent collected and outstanding for ${rows.length} months. ` +
+      rows.map(r => `${monthLabel(r.due_month)}: ${gbp(r.collected)} collected, ` +
+                    `${gbp(r.outstanding)} outstanding`).join('. ')
+  });
+
+  for (const t of ticks) {
+    svg.appendChild(el('line', {
+      x1: M.left, x2: W - M.right, y1: y(t), y2: y(t),
+      stroke: t === 0 ? 'var(--axis)' : 'var(--grid)', 'stroke-width': 1
+    }));
+    svg.appendChild(el('text', {
+      x: M.left - 10, y: y(t) + 4, 'text-anchor': 'end', fill: 'var(--muted)',
+      'font-size': 11.5, 'font-variant-numeric': 'tabular-nums'
+    }, tickLabel(t)));
+  }
+
+  const tip = tooltip(wrap);
+  rows.forEach((row, i) => {
+    const x = M.left + band * i + (band - bw) / 2;
+    const collectedH = (row.collected / top) * plotH;
+    const outstandingH = (row.outstanding / top) * plotH;
+    const gap = outstandingH > 0 ? 2 : 0;   // 2px surface gap between segments
+
+    const segments = [
+      { key: 'collected', color: 'var(--series-1)', label: 'Collected',
+        value: row.collected, h: collectedH, yTop: y(row.collected),
+        rounded: outstandingH === 0 },
+      { key: 'outstanding', color: 'var(--series-2)', label: 'Outstanding',
+        value: row.outstanding, h: Math.max(0, outstandingH - gap),
+        yTop: y(row.due), rounded: true },
+    ];
+
+    for (const seg of segments) {
+      if (seg.h <= 0) continue;
+      const path = el('path', {
+        d: seg.rounded ? barPath(x, seg.yTop, bw, seg.h, 4)
+                       : `M${x},${seg.yTop}h${bw}v${seg.h}h${-bw}Z`,
+        fill: seg.color, tabindex: 0, role: 'listitem'
+      });
+      const html = `<b>${monthLabel(row.due_month)}</b>` +
+        tipRow('var(--series-1)', 'Collected', gbp(row.collected)) +
+        tipRow('var(--series-2)', 'Outstanding', gbp(row.outstanding)) +
+        `<div class="row">Due<var>${gbp(row.due)}</var></div>`;
+      path.addEventListener('mousemove', e => tip.show(html, e));
+      path.addEventListener('mouseleave', tip.hide);
+      svg.appendChild(path);
+    }
+
+    // Selective direct label: only the months that actually went wrong.
+    if (row.outstanding > 0) {
+      svg.appendChild(el('text', {
+        x: x + bw / 2, y: y(row.due) - 8, 'text-anchor': 'middle',
+        fill: 'var(--text-secondary)', 'font-size': 11.5, 'font-weight': 600
+      }, gbp(row.outstanding)));
+    }
+    svg.appendChild(el('text', {
+      x: x + bw / 2, y: H - 12, 'text-anchor': 'middle', fill: 'var(--muted)',
+      'font-size': 11.5
+    }, monthLabel(row.due_month)));
+  });
+
+  wrap.querySelector('svg')?.remove();
+  wrap.prepend(svg);
+}
+
+/* ------------------------------------------ chart 2: grouped rent vs debt */
+function renderMarginChart(wrap) {
+  const rows = DATA.properties;
+  const W = Math.max(wrap.clientWidth || 720, 640), H = 320;
+  const M = { top: 22, right: 12, bottom: 46, left: 62 };
+  const plotW = W - M.left - M.right, plotH = H - M.top - M.bottom;
+  const { top, ticks } = scale(Math.max(...rows.map(
+    r => Math.max(r.monthly_rent || 0, r.mortgage_monthly_payment || 0))));
+  const y = v => M.top + plotH - (v / top) * plotH;
+  const band = plotW / rows.length;
+  const bw = Math.min(20, (band - 8) / 2);
+
+  const svg = el('svg', {
+    width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img',
+    'aria-label': 'Monthly rent against mortgage payment for each of the ' +
+      rows.length + ' properties. ' + rows.map(r =>
+        `${r.property_id}: rent ${gbp(r.monthly_rent)}, mortgage ` +
+        `${gbp(r.mortgage_monthly_payment)}`).join('. ')
+  });
+
+  for (const t of ticks) {
+    svg.appendChild(el('line', {
+      x1: M.left, x2: W - M.right, y1: y(t), y2: y(t),
+      stroke: t === 0 ? 'var(--axis)' : 'var(--grid)', 'stroke-width': 1
+    }));
+    svg.appendChild(el('text', {
+      x: M.left - 10, y: y(t) + 4, 'text-anchor': 'end', fill: 'var(--muted)',
+      'font-size': 11.5
+    }, tickLabel(t)));
+  }
+
+  const tip = tooltip(wrap);
+  rows.forEach((row, i) => {
+    const centre = M.left + band * i + band / 2;
+    const pairs = [
+      ['var(--series-1)', 'Monthly rent', row.monthly_rent, centre - bw - 1],
+      ['var(--series-2)', 'Mortgage', row.mortgage_monthly_payment, centre + 1],
+    ];
+    const html = `<b>${row.property_id} · ${row.address}</b>` +
+      tipRow('var(--series-1)', 'Monthly rent', gbp(row.monthly_rent)) +
+      tipRow('var(--series-2)', 'Mortgage', gbp(row.mortgage_monthly_payment)) +
+      `<div class="row">Margin<var>${gbp(row.monthly_gross_margin)}</var></div>` +
+      `<div class="row">Status<var>${row.status}</var></div>`;
+
+    for (const [color, label, value, x] of pairs) {
+      const h = (value / top) * plotH;
+      const path = el('path', { d: barPath(x, y(value), bw, h, 4), fill: color, tabindex: 0 });
+      path.addEventListener('mousemove', e => tip.show(html, e));
+      path.addEventListener('mouseleave', tip.hide);
+      svg.appendChild(path);
+    }
+    svg.appendChild(el('text', {
+      x: centre, y: H - 26, 'text-anchor': 'middle', fill: 'var(--text-secondary)',
+      'font-size': 11.5
+    }, row.property_id));
+    svg.appendChild(el('text', {
+      x: centre, y: H - 11, 'text-anchor': 'middle', fill: 'var(--muted)', 'font-size': 11
+    }, row.status === 'Occupied' ? 'let' : 'vacant'));
+  });
+
+  wrap.querySelector('svg')?.remove();
+  wrap.prepend(svg);
+}
+
+/* ------------------------------------------------------------- badges */
+const STATUS = {
+  'Valid': 'good', 'Paid': 'good', 'OK': 'good', 'Occupied': 'good', 'Completed': 'good',
+  'Available': 'warning', 'Expiring Soon': 'warning', 'Ending Soon': 'warning',
+  'Partial': 'warning', 'In Progress': 'warning', 'Low': 'good', 'Medium': 'warning',
+  'Open': 'serious', 'Due': 'serious', 'High': 'serious',
+  'Expired': 'critical', 'Late': 'critical',
+};
+const GLYPH = { good: '●', warning: '▲', serious: '◆', critical: '✕' };
+function badge(value) {
+  const role = STATUS[value];
+  if (!role) return value ?? '';
+  return `<span class="badge s-${role}"><i aria-hidden="true">${GLYPH[role]}</i>${value}</span>`;
+}
+
+/* -------------------------------------------------------------- tables */
+const money = v => (v == null ? '' : gbp(v));
+const TABLES = {
+  properties: {
+    label: 'Properties', rows: () => DATA.properties, columns: [
+      ['property_id', 'ID'], ['address', 'Address'], ['property_type', 'Type'],
+      ['bedrooms', 'Beds', 'num'], ['status', 'Status', 'badge'],
+      ['monthly_rent', 'Rent pcm', 'money'],
+      ['mortgage_monthly_payment', 'Mortgage pcm', 'money'],
+      ['monthly_gross_margin', 'Margin pcm', 'money'],
+      ['current_tenant_name', 'Tenant'], ['tenancy_end_date', 'Tenancy ends', 'date'],
+    ]
+  },
+  tenancies: {
+    label: 'Tenancies', rows: () => DATA.tenancies, columns: [
+      ['tenancy_id', 'ID'], ['property_id', 'Property'], ['tenant_name', 'Tenant'],
+      ['tenant_phone', 'Phone'], ['start_date', 'Start', 'date'], ['end_date', 'End', 'date'],
+      ['monthly_rent', 'Rent pcm', 'money'], ['deposit', 'Deposit', 'money'],
+      ['days_to_end', 'Days to end', 'num'], ['renewal_flag', 'Flag', 'badge'],
+    ]
+  },
+  arrears: {
+    label: 'Arrears', rows: () => DATA.arrears, columns: [
+      ['property_id', 'Property'], ['address', 'Address'], ['tenant_name', 'Tenant'],
+      ['total_arrears', 'Owed', 'money'], ['payments_in_arrears', 'Payments', 'num'],
+      ['oldest_unpaid_due_date', 'Oldest unpaid', 'date'],
+    ]
+  },
+  certificates: {
+    label: 'Certificates', rows: () => DATA.certificates, columns: [
+      ['property_id', 'Property'], ['certificate_type', 'Type'],
+      ['issue_date', 'Issued', 'date'], ['expiry_date', 'Expires', 'date'],
+      ['days_to_expiry', 'Days left', 'num'], ['current_status', 'Status', 'badge'],
+    ]
+  },
+  maintenance: {
+    label: 'Maintenance', rows: () => DATA.maintenance, columns: [
+      ['maintenance_id', 'ID'], ['property_id', 'Property'], ['description', 'Job'],
+      ['priority', 'Priority', 'badge'], ['status', 'Status', 'badge'],
+      ['reported_date', 'Reported', 'date'], ['cost_estimate', 'Estimate', 'money'],
+      ['actual_cost', 'Actual', 'money'], ['contractor', 'Contractor'],
+    ]
+  },
+  issues: {
+    label: 'Data quality', rows: () => DATA.issues, columns: [
+      ['entity', 'Table'], ['record_id', 'Record'], ['issue', 'Issue'],
+    ]
+  },
+};
+
+let active = 'properties';
+let sortState = {};
+
+function renderTable() {
+  const spec = TABLES[active];
+  const query = document.getElementById('search').value.trim().toLowerCase();
+  let rows = spec.rows().filter(row => !query ||
+    Object.values(row).some(v => String(v ?? '').toLowerCase().includes(query)));
+
+  const sort = sortState[active];
+  if (sort) {
+    rows = rows.slice().sort((a, b) => {
+      const [x, y] = [a[sort.key], b[sort.key]];
+      if (x == null) return 1;
+      if (y == null) return -1;
+      const cmp = (typeof x === 'number' && typeof y === 'number')
+        ? x - y : String(x).localeCompare(String(y));
+      return sort.dir === 'asc' ? cmp : -cmp;
+    });
+  }
+
+  const head = spec.columns.map(([key, label, type]) =>
+    `<th data-key="${key}" ${sort && sort.key === key ? `data-dir="${sort.dir}"` : ''}
+        class="${type === 'money' || type === 'num' ? 'num' : ''}">${label}</th>`).join('');
+  const body = rows.map(row => '<tr>' + spec.columns.map(([key, , type]) => {
+    const value = row[key];
+    if (type === 'money') return `<td class="num">${money(value)}</td>`;
+    if (type === 'num') return `<td class="num">${value == null ? '' : num(value)}</td>`;
+    if (type === 'date') return `<td>${dateLabel(value)}</td>`;
+    if (type === 'badge') return `<td>${badge(value)}</td>`;
+    return `<td>${value ?? ''}</td>`;
+  }).join('') + '</tr>').join('');
+
+  document.getElementById('table').innerHTML = rows.length
+    ? `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`
+    : `<p class="empty">Nothing matches “${query}”.</p>`;
+
+  document.querySelectorAll('#table th').forEach(th => th.addEventListener('click', () => {
+    const key = th.dataset.key;
+    const current = sortState[active];
+    sortState[active] = { key, dir: current && current.key === key && current.dir === 'asc'
+      ? 'desc' : 'asc' };
+    renderTable();
+  }));
+}
+
+function renderTabs() {
+  const tabs = document.getElementById('tabs');
+  tabs.innerHTML = Object.entries(TABLES).map(([key, spec]) =>
+    `<button class="tab" role="tab" data-key="${key}"
+       aria-selected="${key === active}">${spec.label} <span style="opacity:.65">
+       ${spec.rows().length}</span></button>`).join('');
+  tabs.querySelectorAll('.tab').forEach(tab => tab.addEventListener('click', () => {
+    active = tab.dataset.key;
+    renderTabs();
+    renderTable();
+  }));
+}
+
+function renderRentTable() {
+  const rows = DATA.rent_by_month.map(r => `<tr><td>${monthLabel(r.due_month)}</td>
+    <td class="num">${gbp(r.due)}</td><td class="num">${gbp(r.collected)}</td>
+    <td class="num">${gbp(r.outstanding)}</td></tr>`).join('');
+  document.getElementById('rent-table').innerHTML =
+    `<table><thead><tr><th>Month</th><th class="num">Due</th><th class="num">Collected</th>
+     <th class="num">Outstanding</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function renderSchema() {
+  const groups = [
+    ['Parties', ['landlord', 'tenant', 'contractor']],
+    ['Portfolio', ['property', 'mortgage']],
+    ['Lettings', ['tenancy', 'rent_payment']],
+    ['Compliance', ['maintenance', 'certificate', 'enum_value']],
+  ];
+  document.getElementById('schema').innerHTML = groups.map(([title, tables]) => `
+    <div class="card schema"><strong style="color:var(--text-primary)">${title}</strong>
+      <ul style="margin:8px 0 0;padding-left:18px">
+        ${tables.map(t => `<li><code>${t}</code> — ${num(DATA.counts[t] || 0)} rows</li>`).join('')}
+      </ul></div>`).join('');
+}
+
+/* ---------------------------------------------------------------- boot */
+document.getElementById('generated').textContent = DATA.generated;
+renderTiles();
+renderRentTable();
+renderTabs();
+renderTable();
+renderSchema();
+
+const charts = [
+  [document.getElementById('chart-rent'), renderRentChart],
+  [document.getElementById('chart-margin'), renderMarginChart],
+];
+// Redraw only when the available width actually changed, so observing the
+// wrappers cannot feed itself a resize loop.
+function draw(force) {
+  for (const [wrap, fn] of charts) {
+    const width = wrap.clientWidth;
+    if (!force && wrap.dataset.width === String(width)) continue;
+    wrap.dataset.width = width;
+    fn(wrap);
+  }
+}
+draw(true);
+const observer = new ResizeObserver(() => draw(false));
+charts.forEach(([wrap]) => observer.observe(wrap));
+
+document.getElementById('search').addEventListener('input', renderTable);
+document.getElementById('theme').addEventListener('click', () => {
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+  const current = document.documentElement.dataset.theme || (dark ? 'dark' : 'light');
+  document.documentElement.dataset.theme = current === 'dark' ? 'light' : 'dark';
+  draw(true);
+});
+</script>
+</body>
+</html>

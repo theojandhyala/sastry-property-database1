@@ -12,6 +12,7 @@ pip install -r requirements.txt
 python3 scripts/import_xlsx.py     # build data/property.db from the workbook
 python3 scripts/verify.py          # reconcile the database against the workbook
 python3 scripts/report.py          # run every report in sql/queries.sql
+python3 scripts/build_site.py      # regenerate the published dashboard in docs/
 ```
 
 The database is also queryable with any SQLite client:
@@ -28,6 +29,29 @@ without the `sqlite3` CLI installed. It also takes an ad-hoc query:
 python3 scripts/report.py --sql "SELECT * FROM v_arrears_by_property"
 ```
 
+## The website
+
+The portfolio dashboard is published with GitHub Pages from the `docs/` folder:
+
+**https://theojandhyala.github.io/sastry-property-database1/**
+
+It is one self-contained HTML file — no frameworks, no external requests — with
+stat tiles, two charts, and every table sortable and filterable. The `.db` and
+the source `.xlsx` are downloadable from the page itself.
+
+Regenerate it after any re-import:
+
+```bash
+python3 scripts/import_xlsx.py && python3 scripts/build_site.py
+```
+
+`scripts/build_site.py` queries the database and injects the results as JSON
+into `site/template.html`, so the published page can never disagree with the
+data — edit the template for looks, the SQL for numbers.
+
+If Pages is not switched on yet: **Settings → Pages → Source: Deploy from a
+branch**, then pick the branch holding this work and the **`/docs`** folder.
+
 ## Layout
 
 | Path | What it is |
@@ -40,6 +64,9 @@ python3 scripts/report.py --sql "SELECT * FROM v_arrears_by_property"
 | `scripts/import_xlsx.py` | Workbook → database ETL |
 | `scripts/verify.py` | Row counts and money totals reconciled to the workbook |
 | `scripts/report.py` | Runs `sql/queries.sql` without the sqlite3 CLI |
+| `scripts/build_site.py` | Database → `docs/index.html` |
+| `site/template.html` | The page shell the site is built from |
+| `docs/` | The published site (generated — do not hand-edit) |
 
 ## Schema
 
